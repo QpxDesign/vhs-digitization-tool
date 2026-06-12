@@ -1,1 +1,5 @@
-data/
+data/name.basics.tsv
+data/title.basics.tsv
+data/cinefile.txt
+data/title.akas.tsv
+data/title.principals.tsv
