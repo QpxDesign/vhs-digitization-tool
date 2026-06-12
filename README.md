@@ -1,6 +1,6 @@
 ## VHS Research Tool
 
-### Proudly made without AI, adherent to [Lying Club's Anti-AI Pledge](https://lying.club/ai)
+### Proudly made without 'AI', adherent to [Lying Club's Anti-AI Pledge](https://lying.club/ai)
 
 #### What is this
 
