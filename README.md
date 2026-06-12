@@ -1,4 +1,6 @@
-### VHS Research Tool
+## VHS Research Tool
+
+### Proudly made without AI under the adherent to [Lying Club's Anti-AI Pledge](https://lying.club/ai)
 
 #### What is this
 
