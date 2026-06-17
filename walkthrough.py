@@ -3,18 +3,19 @@ import bs4
 from termcolor import colored
 import json
 import re
+import csv
+from unidecode import unidecode
 
 basics_dataset = "data/title.basics.tsv"
-principals_dataset = "data/title.principals.tsv"
+principals_dataset = "data/title.principals-sorted.tsv"
 names_dataset = "data/name.basics.tsv"
-cinefile_dataset = open("data/cinefile.csv", "r").read()
+cinefile_dataset = "data/cinefile.csv"
 
 
 # selenium shit
 # options = webdriver.ChromeOptions()
 # options.add_argument('--headless')
 # driver = webdriver.Chrome(options=options)
-
 
 print("""
                   ███
@@ -37,6 +38,19 @@ print("         Vidiots VHS Digitization Tool")
 print("           By Quinn Patwardhan - v0.1")
 print("")
 
+
+def process_title(title: str) -> str:
+    out = unidecode(title.strip().lower())
+    return out
+
+
+def print_array(array: list):
+    for line in array:
+        print(line)
+    if len(array) != 0:
+        print("")
+
+
 def print_boolean(value: bool):
     if value:
         print(colored('✓', "green"))
@@ -53,8 +67,12 @@ def resolve_name_id(name_id: str) -> str:
 
 def find_director(imdb_id: str) -> str:
     director = ""
+    int_id = int(imdb_id.replace("tt", ""))
     with open(principals_dataset) as file:
         for line in file:
+            line_id = line.split("\t")[0].replace("tt", "")
+            if line_id.isnumeric() and int(line_id) > int_id:
+                return "No Director Found"
             if len(line.split("\t")) < 4:
                 continue
             if line.split("\t")[0] == imdb_id and line.split("\t")[3] == "director":
@@ -67,24 +85,41 @@ def find_metadata(imdb_id: str) -> [str, str, str]:
     # year, primary_title, original_title
     with open(basics_dataset) as file:
         for line in file:
+            fields = line.split(",")
             if line.split("\t")[0] == imdb_id:
-                return (line.split("\t")[5], line.split("\t")[2], line.split("\t")[3])
+                return (process_title(line.split("\t")[5]), process_title(line.split("\t")[2]), process_title(line.split("\t")[3]))
     assert "UNABLE TO FIND METADATA - " + imdb_id
 
 
-def check_cinefile(metadata: [str, str, str]) -> bool:
-    for line in cinefile_dataset.split("\n"):
-        if metadata[1].lower() in line.lower() or metadata[2].lower() in line.lower():
-            return True
-        if metadata[1].lower().replace("the", "").strip() in line.lower():
-            return True
-    return False
+def check_cinefile(metadata: [str, str, str]) -> [bool, list]:
+    results = []
+    with open(cinefile_dataset, newline='') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            title = process_title(row["Title"])
+            if len(row["Year"]) == 4 and row["Year"] != metadata[0]:
+                continue
+            if process_title(metadata[1]) == title:
+                results.append(title)
+                return (True, results)
+            if process_title(metadata[2]) == title:
+                results.append(title)
+                return (True, results)
+            if metadata[1][0:4] == "the ":
+                formatted_title = metadata[1].replace("the ", "").strip() + ", the"
+                if formatted_title == title:
+                    results.append(title)
+                    return (True, results)
+            if process_title(metadata[1]) in title or process_title(metadata[2]) in title:
+                results.append(row["Title"])
+    return (False, results)
 
 
-def check_whammy(metadata: [str, str, str]) -> bool:
+def check_whammy(metadata: [str, str, str]) -> [bool, list]:
     primary_query = metadata[1].replace(" ", "+")
     original_query = metadata[2].replace(" ", "+")
     queries = [primary_query, original_query]
+    results = []
 
     for query in queries:
         r = requests.get(f"https://shop.whammyanalog.com/search?q={query}")
@@ -94,35 +129,34 @@ def check_whammy(metadata: [str, str, str]) -> bool:
         elements = soup.select(".card__content h3 a")
         items = []
         for element in elements:
-            items.append(element.encode_contents().decode("utf-8").strip().lower())
+            items.append(process_title(element.encode_contents().decode("utf-8")))
         for item in items:
-            if metadata[1].lower() in item or metadata[2].lower() in item:
-                return True
-            if metadata[1].lower().replace("the", "") in item:
-                return True
-        return False
+            results.append(item)
+            if metadata[1].lower() == item or metadata[2].lower() == item:
+                return (True, results)
+    return (False, results)
 
 
-def check_vidtheque(metadata: [str, str, str]) -> bool:
+def check_vidtheque(metadata: [str, str, str]) -> [bool, list]:
     primary_query = metadata[1].replace(" ", "+")
     original_query = metadata[2].replace(" ", "+")
     queries = [primary_query, original_query]
+    results = []
 
     for query in queries:
         r = requests.get(f"https://www.vidtheque.com/Search.aspx?tt={query}")
         if "There were no titles found containing" in r.text:
             continue
         soup_1 = bs4.BeautifulSoup(r.text, features="lxml")
-        elements = soup_1.select(".resultodd")
+        elements = soup_1.select(".resultodd, .resulteven")
         items = []
         for element in elements:
-            items.append(element.select_one(".resultitem a span").encode_contents().decode("utf-8").strip().lower())
+            items.append(process_title(element.select_one(".resultitem a span").encode_contents().decode("utf-8")))
         for item in items:
-            if metadata[1].lower() in item or metadata[2].lower() in item:
-                return True
-            if metadata[1].lower().replace("the", "") in item:
-                return True
-        return False
+            results.append(item)
+            if metadata[1].lower() == item or metadata[2].lower() == item:
+                return (True, results)
+    return (False, results)
 
 
 def check_ucla(metadata: [str, str, str], director) -> bool:
@@ -149,7 +183,7 @@ def check_ucla(metadata: [str, str, str], director) -> bool:
 def check_justwatch(metadata) -> str:
     primary_query = metadata[1].replace(" ", "%20")
     original_query = metadata[2].replace(" ", "%20")
-    queries = [primary_query]
+    queries = [primary_query, original_query]
 
     streams = False
     rents = False
@@ -160,7 +194,7 @@ def check_justwatch(metadata) -> str:
         soup_1 = bs4.BeautifulSoup(r.text, features="lxml")
         containers = soup_1.select(".title-list-row__row__search")
         for container in containers:
-            title = container.select_one(".title-list-row__column-header").encode_contents().decode("utf-8").strip().lower()
+            title = process_title(container.select_one(".title-list-row__column-header").encode_contents().decode("utf-8"))
             if metadata[1].lower() in title and metadata[0] in title:
                 if "is not available" in container.encode_contents().decode("utf-8").lower():
                     return "Not Available"
@@ -188,13 +222,14 @@ def tests():
     print(c)
     print(d)
 
+
 while True:
     imdb_link = input('IMDB Link: ')
     # imdb_link = "https://www.imdb.com/title/tt0048190/?ref_=fn_all_ttl_1"
     imdb_id = imdb_link.split("/")[4]
     director = find_director(imdb_id)
     if director is not None:
-        print("Director: " + director)
+        print("\nDirector: " + director)
     else:
         director = ""
 
@@ -202,15 +237,26 @@ while True:
     print(metadata)
 
     print("Cinefile: ", end="")
-    print_boolean(check_cinefile(metadata))
+    cinefile = check_cinefile(metadata)
+    print_boolean(cinefile[0])
+    print_array(cinefile[1][0:5])
+
     print("Whammy: ", end="")
-    print_boolean(check_whammy(metadata))
+    whammy = check_whammy(metadata)
+    print_boolean(whammy[0])
+    print_array(whammy[1][0:5])
+
     print("Vidtheque: ", end="")
-    print_boolean(check_vidtheque(metadata))
+    vidtheque = check_vidtheque(metadata)
+    print_boolean(vidtheque[0])
+    print_array(vidtheque[1][0:5])
+
     print("UCLA: ", end="")
     print_boolean(check_ucla(metadata, director))
     print("JustWatch: " + check_justwatch(metadata))
     print("")
+
+    print("==============================\n")
 
 # amazon
 # webbrowser.open(f"https://www.amazon.com/s?k={long_query_1}&i=movies-tv")

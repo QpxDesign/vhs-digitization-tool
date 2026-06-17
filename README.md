@@ -15,4 +15,5 @@ From an IMDB URL, it collects metadata about the item from IMDB's static dataset
 1. Install requirements
 2. Download data [from IMDB](https://datasets.imdbws.com) and place in `data/`
    - The following files are required: `title.basics.tsv`, `name.basics.tsv`, and `title.principals.tsv` (~6GB Total)
-3. Run the script: `python3 walkthrough.py`
+3. Prepare the data: `python3 sort_imdb.py`
+4. Run the script: `python3 walkthrough.py`
