@@ -5,12 +5,18 @@ import json
 import re
 import csv
 from unidecode import unidecode
+import linecache
 
 basics_dataset = "data/title.basics.tsv"
-principals_dataset = "data/title.principals-sorted.tsv"
-names_dataset = "data/name.basics.tsv"
-cinefile_dataset = "data/cinefile.csv"
+basics_length = 12536831
 
+principals_dataset = "data/title.principals-sorted.tsv"
+principals_length = 99733259
+
+names_dataset = "data/name.basics.tsv"
+names_length = 15374933
+
+cinefile_dataset = "data/cinefile.csv"
 
 # selenium shit
 # options = webdriver.ChromeOptions()
@@ -39,9 +45,31 @@ print("           By Quinn Patwardhan - v0.1")
 print("")
 
 
+def binary_search_file(n_lines: int, file_path: str, target: int) -> str:
+    left = 0
+    right = n_lines - 1
+
+    while left <= right:
+        mid = (left + right) // 2
+        arr_mid = imdb_to_int(linecache.getline(file_path, mid))
+        if arr_mid == target:
+            return linecache.getline(mid)
+        if arr_mid < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+
+    return "Not Found"
+
+
 def process_title(title: str) -> str:
     out = unidecode(title.strip().lower())
     return out
+
+
+def imdb_to_int(imdb_id: str) -> int:
+    out = imdb_id.replace('tt', '')
+    return int(out)
 
 
 def print_array(array: list):
@@ -56,6 +84,7 @@ def print_boolean(value: bool):
         print(colored('✓', "green"))
     else:
         print(colored('x', "red"))
+
 
 def resolve_name_id(name_id: str) -> str:
     with open(names_dataset) as file:
@@ -195,19 +224,34 @@ def check_justwatch(metadata) -> str:
         containers = soup_1.select(".title-list-row__row__search")
         for container in containers:
             title = process_title(container.select_one(".title-list-row__column-header").encode_contents().decode("utf-8"))
-            if metadata[1].lower() in title and metadata[0] in title:
-                if "is not available" in container.encode_contents().decode("utf-8").lower():
+
+            if metadata[1].lower() in title:
+                int_year = int(metadata[0])
+                txt = process_title(container.encode_contents().decode("utf-8"))
+                soup_2 = bs4.BeautifulSoup(container.encode_contents().decode("utf-8"), features="lxml")
+                labels = soup_2.select(".offer__label")
+
+                #print(txt)
+                if str(int_year-1) not in title and str(int_year+1) not in title and metadata[0] not in title:
+                    continue
+                if "is not available" in txt:
                     return "Not Available"
-                if "stream" in container.encode_contents().decode("utf-8").lower():
+                if "stream" in txt:
                     streams = True
-                if "rent" in container.encode_contents().decode("utf-8").lower():
+                if "rent" in txt:
                     rents = True
                 if streams and rents:
                     return "Both"
                 if streams:
                     return "Streams"
-                if "dvd" in container.encode_contents().decode("utf-8").lower():
-                    print(colored("⚠ DVDs Included in JustWatch Listing", "yellow"))
+                only_dvd = True
+                for label in labels:
+                    formatted_label = process_title(label.encode_contents().decode("utf-8"))
+                    if "dvd" not in label and "blu-ray" not in label:
+                        only_dvd = False
+                        break
+                if only_dvd:
+                    return "Not Available"
                 return "Rents"
     return "Not Available (not found)"
 
