@@ -4,3 +4,6 @@ data/cinefile.txt
 data/title.akas.tsv
 data/title.principals.tsv
 data/title.principals-sorted.tsv
+data/
+.DS_STORE
+data/.DS_STORE

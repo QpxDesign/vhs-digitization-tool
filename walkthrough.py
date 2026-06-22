@@ -6,14 +6,6 @@ import re
 import csv
 from unidecode import unidecode
 
-basics_dataset = open("data/title.basics.tsv").readlines()
-
-principals_dataset = open("data/title.principals-sorted.tsv").readlines()
-
-names_dataset = open("data/name.basics.tsv").readlines()
-
-cinefile_dataset = "data/cinefile.csv"
-
 # selenium shit
 # options = webdriver.ChromeOptions()
 # options.add_argument('--headless')
@@ -40,6 +32,36 @@ print("         Vidiots VHS Digitization Tool")
 print("           By Quinn Patwardhan - v0.1")
 print("")
 
+print("Loading Files...")
+
+basics_dataset = open("data/title.basics-sorted.tsv").readlines()
+
+principals_dataset = open("data/title.principals-sorted-directors.tsv").readlines()
+
+names_dataset = open("data/name.basics-sorted.tsv").readlines()
+
+cinefile_dataset = "data/cinefile.csv"
+
+print("Files Loaded!")
+print("")
+
+
+def binary_search_file(file: list[str], target: int) -> str:
+    left = 0
+    right = len(file) - 1
+
+    while left <= right:
+        mid = (left + right) // 2
+        arr_mid = imdb_to_int(file[mid].split("\t")[0])
+        if arr_mid == target:
+            return file[mid]
+        if arr_mid < target:
+            left = mid + 1
+        else:
+            right = mid - 1
+
+    return "Not Found"
+
 
 def process_title(title: str) -> str:
     out = unidecode(title.strip().lower())
@@ -47,6 +69,9 @@ def process_title(title: str) -> str:
 
 
 def imdb_to_int(imdb_id: str) -> int:
+    if "nm" in imdb_id:
+        out = imdb_id.replace('nm', '')
+        return int(out)
     out = imdb_id.replace('tt', '')
     return int(out)
 
@@ -66,34 +91,25 @@ def print_boolean(value: bool):
 
 
 def resolve_name_id(name_id: str) -> str:
-    for line in names_dataset:
-        if line.split("\t")[0] == name_id:
-            return line.split("\t")[1]
-    assert "UNABLE TO RESOLVE NAME ID - " + name_id
+    line = binary_search_file(names_dataset, imdb_to_int(name_id))
+    return line.split("\t")[1]
 
 
 def find_director(imdb_id: str) -> str:
-    director = ""
-    int_id = int(imdb_id.replace("tt", ""))
-    for line in principals_dataset:
-        line_id = line.split("\t")[0].replace("tt", "")
-        if line_id.isnumeric() and int(line_id) > int_id:
-            return "No Director Found"
-        if len(line.split("\t")) < 4:
-            continue
-        if line.split("\t")[0] == imdb_id and line.split("\t")[3] == "director":
-            director = resolve_name_id(line.split("\t")[2])
-            return director
-    return "No Director Found"
+    line = binary_search_file(principals_dataset, imdb_to_int(imdb_id))
+    if len(line.split("\t")) < 4:
+        return "Not Found"
+    director = resolve_name_id(line.split("\t")[2])
+    return director
 
 
 def find_metadata(imdb_id: str) -> [str, str, str]:
     # year, primary_title, original_title
-    for line in basics_dataset:
-        fields = line.split(",")
-        if line.split("\t")[0] == imdb_id:
-            return (process_title(line.split("\t")[5]), process_title(line.split("\t")[2]), process_title(line.split("\t")[3]))
-    assert "UNABLE TO FIND METADATA - " + imdb_id
+    line = binary_search_file(basics_dataset, imdb_to_int(imdb_id))
+    year = process_title(line.split("\t")[5])
+    primary_title = process_title(line.split("\t")[2])
+    original_title = process_title(line.split("\t")[3])
+    return (year, primary_title, original_title)
 
 
 def check_cinefile(metadata: [str, str, str]) -> [bool, list]:

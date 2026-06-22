@@ -1,10 +1,10 @@
 def sort_dataset(input_file_name: str):
     def sorter(e):
-        int_id = e.split("\t")[0].replace("tt", "")
+        int_id = e.split("\t")[0].replace("nm", "")
         if not int_id.isnumeric():
             print(e)
             return -1
-        return int(e.split("\t")[0].replace("tt", ""))
+        return int(e.split("\t")[0].replace("nm", ""))
     with open(input_file_name) as input_file:
         data = input_file.read().split("\n")
         headers = data[0]
@@ -26,11 +26,11 @@ def check_sorted(input_file_name: str):
                 print(line)
             imdb_id = int(line.split("\t")[0].replace("tt", ""))
             if imdb_id < prev_id:
-                print(prev_id)
-                print(imdb_id)
                 raise Exception("NOT SORTED")
             prev_id = imdb_id
 
 
-check_sorted("data/title.principals-sorted.tsv")
+# check_sorted("data/title.principals-sorted.tsv")
 # sort_dataset("data/title.principals.tsv")
+# sort_dataset("data/title.basics.tsv")
+sort_dataset("data/name.basics.tsv")
