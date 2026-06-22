@@ -5,16 +5,12 @@ import json
 import re
 import csv
 from unidecode import unidecode
-import linecache
 
-basics_dataset = "data/title.basics.tsv"
-basics_length = 12536831
+basics_dataset = open("data/title.basics.tsv").readlines()
 
-principals_dataset = "data/title.principals-sorted.tsv"
-principals_length = 99733259
+principals_dataset = open("data/title.principals-sorted.tsv").readlines()
 
-names_dataset = "data/name.basics.tsv"
-names_length = 15374933
+names_dataset = open("data/name.basics.tsv").readlines()
 
 cinefile_dataset = "data/cinefile.csv"
 
@@ -45,23 +41,6 @@ print("           By Quinn Patwardhan - v0.1")
 print("")
 
 
-def binary_search_file(n_lines: int, file_path: str, target: int) -> str:
-    left = 0
-    right = n_lines - 1
-
-    while left <= right:
-        mid = (left + right) // 2
-        arr_mid = imdb_to_int(linecache.getline(file_path, mid))
-        if arr_mid == target:
-            return linecache.getline(mid)
-        if arr_mid < target:
-            left = mid + 1
-        else:
-            right = mid - 1
-
-    return "Not Found"
-
-
 def process_title(title: str) -> str:
     out = unidecode(title.strip().lower())
     return out
@@ -87,36 +66,33 @@ def print_boolean(value: bool):
 
 
 def resolve_name_id(name_id: str) -> str:
-    with open(names_dataset) as file:
-        for line in file:
-            if line.split("\t")[0] == name_id:
-                return line.split("\t")[1]
-    assert("UNABLE TO RESOLVE NAME ID - " + name_id)
+    for line in names_dataset:
+        if line.split("\t")[0] == name_id:
+            return line.split("\t")[1]
+    assert "UNABLE TO RESOLVE NAME ID - " + name_id
 
 
 def find_director(imdb_id: str) -> str:
     director = ""
     int_id = int(imdb_id.replace("tt", ""))
-    with open(principals_dataset) as file:
-        for line in file:
-            line_id = line.split("\t")[0].replace("tt", "")
-            if line_id.isnumeric() and int(line_id) > int_id:
-                return "No Director Found"
-            if len(line.split("\t")) < 4:
-                continue
-            if line.split("\t")[0] == imdb_id and line.split("\t")[3] == "director":
-                director = resolve_name_id(line.split("\t")[2])
-                return director
+    for line in principals_dataset:
+        line_id = line.split("\t")[0].replace("tt", "")
+        if line_id.isnumeric() and int(line_id) > int_id:
+            return "No Director Found"
+        if len(line.split("\t")) < 4:
+            continue
+        if line.split("\t")[0] == imdb_id and line.split("\t")[3] == "director":
+            director = resolve_name_id(line.split("\t")[2])
+            return director
     return "No Director Found"
 
 
 def find_metadata(imdb_id: str) -> [str, str, str]:
     # year, primary_title, original_title
-    with open(basics_dataset) as file:
-        for line in file:
-            fields = line.split(",")
-            if line.split("\t")[0] == imdb_id:
-                return (process_title(line.split("\t")[5]), process_title(line.split("\t")[2]), process_title(line.split("\t")[3]))
+    for line in basics_dataset:
+        fields = line.split(",")
+        if line.split("\t")[0] == imdb_id:
+            return (process_title(line.split("\t")[5]), process_title(line.split("\t")[2]), process_title(line.split("\t")[3]))
     assert "UNABLE TO FIND METADATA - " + imdb_id
 
 
