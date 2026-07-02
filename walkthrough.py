@@ -5,6 +5,9 @@ import json
 import re
 import csv
 from unidecode import unidecode
+import subprocess
+import webbrowser
+import urllib.parse
 
 # selenium shit
 # options = webdriver.ChromeOptions()
@@ -44,6 +47,14 @@ cinefile_dataset = "data/cinefile.csv"
 
 print("Files Loaded!")
 print("")
+
+
+# https://tamarisk.it/manipulating-the-clipboard-using-python3
+def set_clipboard_data(data):
+    p = subprocess.Popen(['pbcopy'], stdin=subprocess.PIPE)
+    p.stdin.write(data.encode('utf-8'))
+    p.stdin.close()
+    retcode = p.wait()
 
 
 def binary_search_file(file: list[str], target: int) -> str:
@@ -245,18 +256,9 @@ def check_justwatch(metadata) -> str:
                 if only_dvd:
                     return "Not Available"
                 return "Rents"
+    query = urllib.parse.quote_plus(metadata[1])
+    webbrowser.open(f"https://www.justwatch.com/us/search?q={query}")
     return "Not Available (not found)"
-
-
-def tests():
-    a =  check_justwatch(('1955', 'I Died a Thousand Times', 'I Died a Thousand Times')) # "Both"
-    b = check_justwatch(("1956", "The Steel Jungle", "The Steel Jungle")) # "Not Available"
-    c = check_justwatch(("2025", "A Thousand Blows", "A Thousand Blows")) # "Streams"
-    d = check_justwatch(("1978", "Battlestar Galactica", "Battlestar Galactica")) # "Rents"
-    print(a)
-    print(b)
-    print(c)
-    print(d)
 
 
 while True:
@@ -264,10 +266,10 @@ while True:
     # imdb_link = "https://www.imdb.com/title/tt0048190/?ref_=fn_all_ttl_1"
     imdb_id = imdb_link.split("/")[4]
     director = find_director(imdb_id)
-    if director is not None:
-        print("\nDirector: " + director)
-    else:
+    print("\nDirector: " + director)
+    if director == "Not Found":
         director = ""
+    set_clipboard_data(director)
 
     metadata = find_metadata(imdb_id)
     print(metadata)
@@ -292,10 +294,8 @@ while True:
     print("JustWatch: " + check_justwatch(metadata))
     print("")
 
+    query = urllib.parse.quote_plus(metadata[1])
+    webbrowser.open(f"https://www.ebay.com/sch/i.html?_nkw={query}&_sacat=11232")
+    webbrowser.open(f"https://www.amazon.com/s?k={query}&i=movies-tv")
+
     print("==============================\n")
-
-# amazon
-# webbrowser.open(f"https://www.amazon.com/s?k={long_query_1}&i=movies-tv")
-
-# ebay
-# webbrowser.open(f"https://www.ebay.com/sch/i.html?_nkw={long_query_1}")
